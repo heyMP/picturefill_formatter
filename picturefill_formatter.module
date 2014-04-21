@@ -1,0 +1,95 @@
+<?php
+
+/**
+ * Implements hook_field_formatter_info().
+ */
+function picturefill_formatter_field_formatter_info() {
+  $settings = array();
+  $image_styles = image_style_options(FALSE);
+  foreach ($image_styles as $key => $image_style) {
+    $settings[$key] = array('media_query' => '');
+  }
+
+  return array(
+    'picturefill_formatter' => array( //Machine name of the formatter
+      'label' => t('Picturefill Formatter'),
+      'field types' => array('image'), //This will only be available to text fields
+      'settings'  => array('picturefill_images' => $settings)
+    ),
+  );
+}
+
+function picturefill_formatter_field_formatter_settings_form($field, $instance, $view_mode, $form, &$form_state) {
+  //This gets the view_mode where our settings are stored
+  $display = $instance['display'][$view_mode];
+  //This gets the actual settings
+  $settings = $display['settings'];
+  //Initialize the element variable
+  $element = array();
+  //Get a list of image styles
+  $image_styles = image_style_options(FALSE);
+  dsm($settings);
+
+  $element['picturefill_images'] = array(
+    '#type' => 'fieldset',
+    '#title' => 'Responsive Images',
+  );
+  foreach ($image_styles as $key => $image_style) {
+    $name = $key;
+    $element['picturefill_images'][$name]['media_query'] = array(
+      '#type' => 'textfield',
+      '#title' => t('@image-style media query', array('@image-style' => $name)),
+      '#default_value' => $settings['picturefill_images'][$name]['media_query']
+    );
+  }
+  $element['picturefill_images']['no_js']['image_style'] = array(
+    '#title' => t('Image style for browsers without javascript'),
+      '#type' => 'select',
+      '#default_value' => $settings['picturefill_images']['no_js']['image_style'],
+      '#empty_option' => t('None'),
+      '#options' => $image_styles,
+  );
+
+  return $element;
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ */
+function picturefill_formatter_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array(); // Initialize the var
+  $settings = $display['settings']; // get the settings
+  $large_size = $settings['large_size'];
+  $picturefill_images = $settings['picturefill_images'];
+
+  // We need to filter out the image styles that don't have media queries
+  foreach ($picturefill_images as $key => $picturefill_image) {
+    if (!$picturefill_image['media_query']) {
+      unset($picturefill_images[$key]);
+    }
+  }
+
+  // Now for each image that was uploaded we are going turn the markup into
+  // the picturefill correct markup
+  foreach ($items as $delta => $item) {
+    if ($index === NULL || $index === $delta) {
+      $output = '';
+
+      foreach ($picturefill_images as $key => $picturefill_image) {
+        $image_path = image_style_url($key, $item['uri']);
+        $media_query = $picturefill_image['media_query'];
+
+        $output .= '<span data-src="' . $image_path . '" data-media="(' . $media_query . ')"></span>';
+      }
+
+      $element[$delta] = array(
+        '#type' => 'markup',
+        '#markup' => $output,
+        '#prefix' => '<span data-picture data-alt="A giant stone face at The Bayon temple in Angkor Thom, Cambodia">',
+        '#suffix' => '</span>'
+      );
+    }
+  }
+
+  return $element;
+}

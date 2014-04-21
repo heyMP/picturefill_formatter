@@ -1,0 +1,3 @@
+name = Picturefill Formatter
+description = Adds a field formatter for the picturefill plugin
+core = 7.x
